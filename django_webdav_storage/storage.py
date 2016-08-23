@@ -4,6 +4,8 @@ from __future__ import unicode_literals
 from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
+import os
+from django.utils.crypto import get_random_string
 from django.core.files.storage import Storage as StorageBase
 from django.core.files.base import ContentFile
 from django.conf import settings
@@ -99,6 +101,22 @@ class WebDavStorage(StorageBase):
             self.webdav('DELETE', name)
         except requests.HTTPError:
             pass
+
+    def get_available_name(self, name):
+        """
+        Returns a filename that's free on the target storage system, and
+        available for new content to be written to.
+        """
+        name = name.replace('\\', '/')
+        dir_name, file_name = os.path.split(name)
+        file_root, file_ext = os.path.splitext(file_name)
+        # If the filename already exists, add an underscore and a random 7
+        # character alphanumeric string (before the file extension, if one
+        # exists) to the filename until the generated filename doesn't exist.
+        while self.exists(name):
+            # file_ext includes the dot.
+            name = "{}/{}_{}{}".format(dir_name, file_root, get_random_string(7), file_ext)
+        return name
 
     def exists(self, name):
         try:
